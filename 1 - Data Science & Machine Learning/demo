@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# This script extracts the clean, runnable code for a single section.
+# Usage: ./demo <section_number>
+
+# --- Configuration ---
+# Assumes you are using the tagged file from the previous step.
+SOURCE_FILE="full_demo.py"
+OUTPUT_FILE="main.py"
+
+# --- Script Logic ---
+
+# 1. Validate Input
+if [ "$#" -ne 1 ]; then
+    echo "❌ Error: Invalid number of arguments."
+    echo "Usage: $0 <section_number>"
+    exit 1
+fi
+
+if [[ "$1" == "reset" ]]; then
+  printf "" > "$OUTPUT_FILE"
+  exit 0
+fi
+
+SECTION_NUM=$1
+# You can adjust the range based on the number of sections you have.
+if ! [[ "$SECTION_NUM" =~ ^[1-8]$ ]]; then
+    echo "❌ Error: Section number must be an integer between 1 and 8."
+    exit 1
+fi
+
+# 2. Check for Source File
+if [ ! -f "$SOURCE_FILE" ]; then
+    echo "❌ Error: Source file '$SOURCE_FILE' not found."
+    exit 1
+fi
+
+# 3. Extract and Build the Script
+
+# Part A: Extract the header (imports and helper functions)
+# awk '/# SECTION 1 START/{exit} {print}' "$SOURCE_FILE" > "$OUTPUT_FILE"
+printf "import numpy as np\n" > "$OUTPUT_FILE"
+printf "import pandas as pd\n" >> "$OUTPUT_FILE"
+# printf "import matplotlib.pyplot as plt\n" >> "$OUTPUT_FILE"
+printf "from full_demo import print_arr, print_df\n" >> "$OUTPUT_FILE"
+printf "\n\n\n\n\n" >> "$OUTPUT_FILE"
+printf "def main():\n\n" >> "$OUTPUT_FILE"
+
+# Part B: Extract, outdent, and clean the logic for the chosen section.
+awk -v sec_num="$SECTION_NUM" '
+    # Set/unset flags when entering/leaving the section.
+    $0 ~ "# SECTION " sec_num " START" { in_block=1; next; }
+    $0 ~ "# SECTION " sec_num " END"   { in_block=0; has_passed_if=0; next; }
+
+    # This action only runs for lines between the section markers.
+    in_block {
+        # Case 1: Is this the "if" statement line?
+        if ($0 ~ "if arg == " sec_num " or arg == 0:") {
+            has_passed_if = 1; # Set flag for subsequent lines.
+            next;              # Skip this line entirely.
+        }
+        # Case 2: Have we already passed the "if" statement?
+        else if (has_passed_if) {
+            sub(/^[ ]{2}/, ""); # If yes, outdent the line...
+            print;             # ...and print it.
+        }
+        # Case 3: If none of the above, it must be a line *before* the "if".
+        else {
+            print; # Print it as-is.
+        }
+    }
+' "$SOURCE_FILE" >> "$OUTPUT_FILE"
+
+# Add a newline for readability
+printf "\n\n\n\n\n" >> "$OUTPUT_FILE"
+
+# Part C: Extract, de-indent, and re-indent the print function body
+awk -v sec_num="$SECTION_NUM" '
+    BEGIN {
+        start_marker = "# PRINT " sec_num " START";
+        end_marker   = "# PRINT " sec_num " END";
+        exclude_line = "^[[:space:]]*def print_" sec_num "\\(\\):";
+    }
+    $0 ~ start_marker { in_block=1; next }
+    $0 ~ end_marker   { in_block=0; next }
+    
+    in_block && $0 !~ exclude_line {
+        # 1. Remove all leading spaces and tabs from the line
+        sub(/^[[:space:]]+/, "");
+        # 2. Print the line with two spaces prepended
+        print "  " $0
+    }
+' "$SOURCE_FILE" >> "$OUTPUT_FILE"
+
+
+printf "\n\n\n\n\n\nif __name__ == '__main__':\n" >> "$OUTPUT_FILE"
+printf "  main()\n" >> "$OUTPUT_FILE"
+
+clear
