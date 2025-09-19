@@ -13,7 +13,10 @@ def main():
   mask = df['Price_USD'].apply(lambda x: isinstance(x, str))
   df.loc[mask, 'Price_USD'] = df.loc[mask, 'Price_USD'].str.replace('$', '')
   df.loc[mask, 'Price_USD'] = df.loc[mask, 'Price_USD'].str.replace(',', '')
-  df.loc[mask, 'Price_USD'] = df.loc[mask, 'Price_USD'].astype(int)
+
+  df['Price_USD'] = pd.to_numeric(df['Price_USD'], errors='coerce')
+
+
 
   if df['Price_USD'].isnull().any():
     mean_price = df['Price_USD'].mean() 
