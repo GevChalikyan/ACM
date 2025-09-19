@@ -218,7 +218,6 @@ def main(arg:int = 0):
     normalized_df = un_strung_df.copy()
     normalized_df["calories"] = (normalized_df["calories"] - normalized_df["calories"].min()) / (normalized_df["calories"].max() - normalized_df["calories"].min())
     normalized_df["duration"] = (normalized_df["duration"] - normalized_df["duration"].min()) / (normalized_df["duration"].max() - normalized_df["duration"].min())
-
   # SECTION 8 END
 
 
